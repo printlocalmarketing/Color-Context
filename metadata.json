@@ -1,0 +1,7 @@
+{
+  "name": "Copy of Color Context",
+  "description": "A high-end social color translator for colorblind users, decoding visual signs in food and cooking through a sleek, glassmorphic interface.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
