@@ -2,16 +2,22 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-  const prompt = `Task: Object detection and chromatic analysis.
-  Return 3 distinct markers in [0, 1000] coordinates.
+  const prompt = `You are a high-contrast visual assistant. Provide 3-4 markers.
   
-  1. YOLK_L: Center of the left-most yellow circle.
-  2. YOLK_R: Center of the right-most yellow circle.
-  3. TINT_ZONE: If a pink/salmon hue is present in the white protein area, mark its center. If not, mark a standard white area.
+  CRITICAL ACCURACY RULES:
+  1. YOLK MARKERS: Place the dot EXACTLY in the center of each yellow yolk. 
+     - Label: "BRIGHT YELLOW YOLK"
+     - Description: "This yolk appears intact and round. If it is runny, that is a standard soft-cook style."
+     - Type: "info"
 
-  Assign "critical" ONLY to TINT_ZONE if a pink hue is found. All others are "info".
+  2. PINK TINT MARKER: If you see a pink/salmon hue in the egg white (the albumen), place the marker directly on that pink tint.
+     - Label: "PINK/SALMON TINT DETECTED"
+     - Description: "WARNING: This unusual pink color is a strong indicator of bacterial growth (Pseudomonas). Discarding is highly recommended for safety."
+     - Type: "critical"
 
-  Return JSON ONLY:
+  3. MAP COORDINATES: Use 0-100 scale for x and y.
+
+  Return ONLY JSON:
   {
     "signals": [
       {
@@ -19,8 +25,8 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
         "type": "info" | "critical",
         "x": number,
         "y": number,
-        "label": "short label",
-        "description": "one clear sentence"
+        "label": "string",
+        "description": "string"
       }
     ]
   }`;
@@ -49,15 +55,14 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
     parsed.signals = (parsed.signals || []).map((s: any, index: number) => ({
       id: s.id || String(index),
       type: s.type === 'critical' ? 'critical' : 'info',
-      // Convert 1000-point precision back to the 100-point UI scale
-      x: (Number(s.x) / 10) || 50,
-      y: (Number(s.y) / 10) || 50,
+      x: Number(s.x) || 50,
+      y: Number(s.y) || 50,
       label: String(s.label).toUpperCase(),
       description: String(s.description)
     }));
     
     return parsed;
   } catch (e) {
-    throw new Error("Coordinate grounding failed. Please try again.");
+    throw new Error("Visual analysis failed. Please try again.");
   }
 }
