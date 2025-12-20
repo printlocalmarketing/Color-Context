@@ -2,25 +2,22 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-  // This prompt forces the AI to find MULTIPLE points of interest
   const prompt = `You are a high-contrast visual assistant for the colorblind. 
-  Scan this ${mode} image and identify 3 to 5 distinct points of interest (like different food items, textures, or color changes).
+  Scan this ${mode} image and find 4 key points. 
+  For each point, provide a JSON object. 
   
-  For each point, provide:
-  1. Coordinates (x and y from 10 to 90).
-  2. A clear label.
-  3. A description focusing on color, contrast, and safety.
-
-  Return ONLY a JSON object:
+  CRITICAL: The "description" must be a simple string under 100 characters.
+  
+  Return ONLY this JSON structure:
   {
     "signals": [
       {
         "id": "1",
         "type": "info",
-        "x": number,
-        "y": number,
-        "label": "string",
-        "description": "string"
+        "x": 50,
+        "y": 50,
+        "label": "Name of object",
+        "description": "Color and safety info"
       }
     ]
   }`;
@@ -39,23 +36,27 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
   });
 
   const data = await response.json();
-
   if (data.error) throw new Error(data.error.message);
 
   try {
     const textResult = data.candidates[0].content.parts[0].text;
-    // Clean up any extra characters the AI might add
     const cleanJson = textResult.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(cleanJson);
     
-    // Ensure every signal has a 'type' so the Drawer doesn't crash
-    parsed.signals = parsed.signals.map((s: any) => ({
-      ...s,
-      type: s.type || 'info'
+    // SAFETY CHECK: This prevents the black screen crash
+    // It makes sure every dot has a valid label and description string.
+    parsed.signals = parsed.signals.map((s: any, index: number) => ({
+      id: s.id || String(index),
+      type: s.type || 'info',
+      x: Number(s.x) || 50,
+      y: Number(s.y) || 50,
+      label: String(s.label || "Visual Point").toUpperCase(),
+      description: String(s.description || "No description available.")
     }));
     
     return parsed;
   } catch (e) {
-    throw new Error("The AI response was messy. Please try again.");
+    console.error("Parse Error:", e);
+    throw new Error("The AI response was incompatible. Try again.");
   }
 }
