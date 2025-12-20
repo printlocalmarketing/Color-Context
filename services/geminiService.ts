@@ -2,20 +2,24 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-  const prompt = `You are a high-contrast visual technician. 
-  Identify 4 points of interest in this image. 
-  
-  Rule: If you see a pink/salmon tint in the egg white area, place a marker directly on that tint.
-  Label it: "CHROMATIC ANOMALY".
-  Description: "Noticeable pink tint detected. This is a red flag for spoilage. Most users discard for safety."
+  const prompt = `You are a high-precision spatial grounding assistant. 
+  Analyze this image. Identify only the MOST relevant points (minimum 2, maximum 5).
+
+  PRECISION RULES:
+  1. Use a [0, 1000] coordinate system where (0,0) is top-left and (1000,1000) is bottom-right.
+  2. For the MEAT: Place the marker directly in the center of the pinkest/reddest part.
+  3. For EGG WHITES: If you see pink/salmon tints, place a marker EXACTLY on the tint.
+  4. Only use the "Critical" type for ACTUAL safety risks (like the pink bacteria or raw center). Use "Info" for everything else.
+  5. Do NOT mark backgrounds, cutting boards, or irrelevant props.
 
   Return ONLY JSON:
   {
     "signals": [
       {
         "id": "1",
-        "x": 50,
-        "y": 50,
+        "type": "info" | "critical",
+        "x": number,
+        "y": number,
         "label": "string",
         "description": "string"
       }
@@ -43,26 +47,18 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
     const cleanJson = textResult.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(cleanJson);
     
-    // THIS IS THE CRITICAL FIX: The "Parsed Map"
-    // We force every 'x' and 'y' to be a real Number and provide defaults
-    parsed.signals = (parsed.signals || []).map((s: any, index: number) => {
-      // Logic: If the AI sent a string, convert to Number. If it's missing, use 50.
-      const safeX = isNaN(Number(s.x)) ? 50 : Number(s.x);
-      const safeY = isNaN(Number(s.y)) ? 50 : Number(s.y);
-
-      return {
-        id: s.id || String(index),
-        type: 'info',
-        x: safeX,
-        y: safeY,
-        label: String(s.label || "VISUAL POINT").toUpperCase(),
-        description: String(s.description || "No description available.")
-      };
-    });
+    // Convert the AI's 0-1000 coordinates to the 0-100 percentage your UI needs
+    parsed.signals = (parsed.signals || []).map((s: any, index: number) => ({
+      id: s.id || String(index),
+      type: s.type === 'critical' ? 'critical' : 'info',
+      x: (Number(s.x) / 10) || 50, // 750 becomes 75%
+      y: (Number(s.y) / 10) || 50,
+      label: String(s.label).toUpperCase(),
+      description: String(s.description)
+    }));
     
     return parsed;
   } catch (e) {
-    console.error("Coordinate Parse Error:", e);
     throw new Error("The AI report was blocked or formatted incorrectly. Try again.");
   }
 }
