@@ -1,8 +1,21 @@
-export async function analyzeImage(base64Image: string) {
+export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cooking') {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  
-  // Using the stable Gemini 2.5 Flash for the current free tier
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+
+  const prompt = `You are a colorblind assistant. Analyze this ${mode} image. 
+  Return ONLY a JSON object with this exact structure:
+  {
+    "signals": [
+      {
+        "id": "1",
+        "type": "info",
+        "x": 50, 
+        "y": 50,
+        "label": "Color Analysis",
+        "description": "Describe the main colors here for a colorblind person."
+      }
+    ]
+  }`;
 
   const response = await fetch(url, {
     method: 'POST',
@@ -10,7 +23,7 @@ export async function analyzeImage(base64Image: string) {
     body: JSON.stringify({
       contents: [{
         parts: [
-          { text: "Describe the colors in this image briefly for someone who is colorblind." },
+          { text: prompt },
           { inlineData: { mimeType: "image/jpeg", data: base64Image.split(',')[1] } }
         ]
       }]
@@ -20,16 +33,15 @@ export async function analyzeImage(base64Image: string) {
   const data = await response.json();
 
   if (data.error) {
-    throw new Error(`Google Error: ${data.error.message}`);
+    throw new Error(data.error.message);
   }
 
-  // MEMORY SAFETY: Extract the text and clear the variable
-  if (data.candidates && data.candidates[0].content) {
-    const result = data.candidates[0].content.parts[0].text;
-    
-    // We trim the text to keep it 'light' for the screen to render
-    return result.trim();
+  // This part cleans the AI's answer so the App can read it without crashing
+  try {
+    const textResult = data.candidates[0].content.parts[0].text;
+    const cleanJson = textResult.replace(/```json|```/g, "").trim();
+    return JSON.parse(cleanJson);
+  } catch (e) {
+    throw new Error("The AI response was formatted incorrectly. Please try again.");
   }
-  
-  throw new Error("Analysis finished but result was empty.");
 }
