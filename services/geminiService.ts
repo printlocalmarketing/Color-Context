@@ -1,26 +1,34 @@
-// We are adding '/version' to the end of the import to force it to look at the new spot
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
-
 export async function analyzeImage(base64Image: string) {
-  // This is the direct address for the free flash model
-  const model = genAI.getGenerativeModel({ 
-    model: "gemini-1.5-flash",
-  }, { apiVersion: 'v1beta' });
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  
+  // This is the DIRECT URL to the v1beta spot, bypassing the broken 'v1' library
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-  const prompt = "Identify the main colors in this image. Describe them simply for someone who is colorblind.";
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      contents: [{
+        parts: [
+          { text: "Identify the main colors in this image and describe them simply for someone who is colorblind." },
+          {
+            inlineData: {
+              mimeType: "image/jpeg",
+              data: base64Image.split(',')[1]
+            }
+          }
+        ]
+      }]
+    })
+  });
 
-  const result = await model.generateContent([
-    prompt,
-    {
-      inlineData: {
-        data: base64Image.split(',')[1],
-        mimeType: "image/jpeg"
-      }
-    }
-  ]);
+  const data = await response.json();
 
-  const response = await result.response;
-  return response.text();
+  if (data.error) {
+    throw new Error(data.error.message);
+  }
+
+  return data.candidates[0].content.parts[0].text;
 }
