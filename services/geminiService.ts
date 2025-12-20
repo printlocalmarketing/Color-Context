@@ -1,10 +1,10 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// This pulls the secret key you saved in Vercel
+// This creates the connection using your Vercel API key
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
 
 export async function analyzeImage(base64Image: string) {
-  // This uses the "flash" model which is the fastest
+  // We use the 'flash' model for the fastest results
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   const prompt = "Identify the main colors in this image and describe them for someone who is colorblind.";
