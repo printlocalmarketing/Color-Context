@@ -2,22 +2,22 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-  const prompt = `You are a high-contrast visual assistant. Provide 3-4 markers.
+  const prompt = `You are a high-contrast visual partner for the colorblind. Identify 3-4 key visual markers.
   
-  CRITICAL ACCURACY RULES:
-  1. YOLK MARKERS: Place the dot EXACTLY in the center of each yellow yolk. 
-     - Label: "BRIGHT YELLOW YOLK"
-     - Description: "This yolk appears intact and round. If it is runny, that is a standard soft-cook style."
-     - Type: "info"
-
-  2. PINK TINT MARKER: If you see a pink/salmon hue in the egg white (the albumen), place the marker directly on that pink tint.
-     - Label: "PINK/SALMON TINT DETECTED"
-     - Description: "WARNING: This unusual pink color is a strong indicator of bacterial growth (Pseudomonas). Discarding is highly recommended for safety."
+  CORE INSTRUCTIONS:
+  1. Detect any pink, salmon, or reddish tints in the egg whites. If found, place a marker EXACTLY on the pinkest part of that tint.
+     - Label: "PINK TINT DETECTED"
+     - Description: "This unusual pink hue in the white is a known sign of Pseudomonas bacteria. For safety, this egg should be discarded."
      - Type: "critical"
 
-  3. MAP COORDINATES: Use 0-100 scale for x and y.
+  2. Detect the yellow yolks. Place a marker directly in the center of the yellow area.
+     - Label: "YELLOW YOLK"
+     - Description: "The yolk appears standard in color. Ensure it reaches your desired doneness."
+     - Type: "info"
 
-  Return ONLY JSON:
+  3. Use a 0-100 coordinate scale for X and Y.
+
+  Return ONLY a JSON object:
   {
     "signals": [
       {
@@ -54,7 +54,8 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
     
     parsed.signals = (parsed.signals || []).map((s: any, index: number) => ({
       id: s.id || String(index),
-      type: s.type === 'critical' ? 'critical' : 'info',
+      // Only keep 'critical' if the AI actually identified a pink tint
+      type: (s.label.toLowerCase().includes('pink') || s.type === 'critical') ? 'critical' : 'info',
       x: Number(s.x) || 50,
       y: Number(s.y) || 50,
       label: String(s.label).toUpperCase(),
@@ -63,6 +64,6 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
     
     return parsed;
   } catch (e) {
-    throw new Error("Visual analysis failed. Please try again.");
+    throw new Error("The analysis failed. Please try a clearer photo.");
   }
 }
