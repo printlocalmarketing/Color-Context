@@ -2,19 +2,16 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-  const prompt = `You are a high-precision spatial assistant. 
-  Task: Identify exactly 3-4 markers. Use [0, 1000] normalized coordinates.
+  const prompt = `Task: Object detection and chromatic analysis.
+  Return 3 distinct markers in [0, 1000] coordinates.
+  
+  1. YOLK_L: Center of the left-most yellow circle.
+  2. YOLK_R: Center of the right-most yellow circle.
+  3. TINT_ZONE: If a pink/salmon hue is present in the white protein area, mark its center. If not, mark a standard white area.
 
-  ACCURACY RULES:
-  1. For YOLKS: Place the marker directly in the GEOMETRIC CENTER of the yellow circle.
-  2. For PINK TINTS: Place the marker in the densest part of the pink/salmon hue in the white.
-  3. Label the left yolk "LEFT YOLK" and the right yolk "RIGHT YOLK" for clarity.
+  Assign "critical" ONLY to TINT_ZONE if a pink hue is found. All others are "info".
 
-  CRITICAL VS INFO RULES:
-  - ONLY use "critical" if you see the pink/salmon bacteria tint.
-  - Use "info" for yolks, edges, or normal textures. Do NOT mark healthy yolks as critical.
-
-  Return ONLY JSON:
+  Return JSON ONLY:
   {
     "signals": [
       {
@@ -22,8 +19,8 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
         "type": "info" | "critical",
         "x": number,
         "y": number,
-        "label": "string",
-        "description": "string"
+        "label": "short label",
+        "description": "one clear sentence"
       }
     ]
   }`;
@@ -51,9 +48,8 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
     
     parsed.signals = (parsed.signals || []).map((s: any, index: number) => ({
       id: s.id || String(index),
-      // Only allow 'critical' if the AI explicitly chose it for a danger
       type: s.type === 'critical' ? 'critical' : 'info',
-      // We divide by 10 because the UI expects 0-100, but 0-1000 is more accurate for the AI
+      // Convert 1000-point precision back to the 100-point UI scale
       x: (Number(s.x) / 10) || 50,
       y: (Number(s.y) / 10) || 50,
       label: String(s.label).toUpperCase(),
@@ -62,6 +58,6 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
     
     return parsed;
   } catch (e) {
-    throw new Error("The AI report was formatted incorrectly. Try again.");
+    throw new Error("Coordinate grounding failed. Please try again.");
   }
 }
