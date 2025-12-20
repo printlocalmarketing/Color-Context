@@ -3,15 +3,26 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
   const prompt = `You are Color Context, a savvy partner helping a colorblind friend. 
-  Analyze this ${mode} image. Find 2-4 key visual signs.
+  Analyze this ${mode} image. Find 2-4 key visual signs on the food.
 
-  SPECIFIC LOGIC FOR EGGS (HIGHEST PRIORITY):
-  - UNUSUAL PINK TINT: If an egg white shows a pink/salmon tint, assign riskLevel "critical". 
-    Interpretation: "This unusual pink tint is a red flag for bacteria/spoilage. Most people would likely toss this out to stay safe."
-  - COOKING STATUS: If egg white is glossy or translucent, assign riskLevel "alert".
-    Interpretation: "STILL SETTING: The glossy surface means proteins haven't fully set. Most wait for a matte, opaque white look."
-  
-  SPATIAL RULE: Place markers (x, y) directly in the GEOMETRIC CENTER of the feature.`;
+  EGG LOGIC:
+  - If white is pink/salmon: riskLevel "critical", interpretation: "This unusual pink tint is a red flag for bacteria/spoilage. Most people would likely toss this out to stay safe."
+  - If white is glossy/translucent: riskLevel "alert", interpretation: "STILL SETTING: The glossy surface means proteins haven't fully set."
+  - For normal yolks: riskLevel "none", interpretation: "Standard yellow appearance."
+
+  Return ONLY JSON in this format:
+  {
+    "signals": [
+      {
+        "id": "1",
+        "x": number (0-100),
+        "y": number (0-100),
+        "observation": "Short Label",
+        "interpretation": "Savvy description",
+        "riskLevel": "none" | "alert" | "critical"
+      }
+    ]
+  }`;
 
   const response = await fetch(url, {
     method: 'POST',
@@ -24,27 +35,7 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
         ]
       }],
       generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "OBJECT",
-          properties: {
-            signals: {
-              type: "ARRAY",
-              items: {
-                type: "OBJECT",
-                properties: {
-                  id: { type: "STRING" },
-                  x: { type: "NUMBER" },
-                  y: { type: "NUMBER" },
-                  observation: { type: "STRING" },
-                  interpretation: { type: "STRING" },
-                  riskLevel: { type: "STRING", enum: ["none", "alert", "critical"] }
-                },
-                required: ["id", "x", "y", "observation", "interpretation", "riskLevel"]
-              }
-            }
-          }
-        }
+        responseMimeType: "application/json"
       }
     })
   });
@@ -56,8 +47,8 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
     const textResult = data.candidates[0].content.parts[0].text;
     const parsed = JSON.parse(textResult);
     
-    // Map the Studio schema to your Drawer UI
-    parsed.signals = parsed.signals.map((s: any, index: number) => ({
+    // Map Studio logic to your Drawer UI dots
+    parsed.signals = (parsed.signals || []).map((s: any, index: number) => ({
       id: s.id || String(index),
       type: s.riskLevel === 'none' ? 'info' : s.riskLevel,
       x: Number(s.x) || 50,
@@ -68,6 +59,7 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
     
     return parsed;
   } catch (e) {
-    throw new Error("The visual signs were too complex to read. Try again.");
+    console.error("Studio Parse Error:", e);
+    throw new Error("The AI is having trouble focusing. Try a clearer shot.");
   }
 }
