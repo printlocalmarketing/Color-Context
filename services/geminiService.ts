@@ -1,22 +1,27 @@
 export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cooking') {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  
+  // Using the 2.5 Flash model which is the active free tier for late 2025
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-  // This prompt is intentionally "boring" to bypass safety filters
-  const prompt = `Identify 4 distinct color regions in this image.
-  For each region, provide a marker.
+  const prompt = `You are a high-contrast visual assistant for the colorblind. 
+  Scan this ${mode} image and find 4 key points of interest. 
+
+  CRITICAL SAFETY RULE: Never tell the user food is "safe to eat" or "perfectly cooked" based only on color. 
+  Instead, describe visual signs (e.g., "The edge has turned opaque white"). 
+  Specifically for eggs, warn that translucency or pink/salmon tints are red flags for bacteria (Pseudomonas) or spoilage. 
+  Most people would toss this out to stay safe.
   
-  Specific target: If any non-yellow area has a pink or salmon-colored hue, place a marker there.
-  
-  Return ONLY JSON:
+  Return ONLY this JSON structure:
   {
     "signals": [
       {
         "id": "1",
+        "type": "info",
         "x": 50,
         "y": 50,
-        "label": "COLOR REGION",
-        "description": "Provide a 1-sentence description of the color and texture here."
+        "label": "Brief Visual Sign (e.g. Pink Tint)",
+        "description": "What it means (e.g. Warning: Bacteria/Spoilage)"
       }
     ]
   }`;
@@ -30,41 +35,35 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
           { text: prompt },
           { inlineData: { mimeType: "image/jpeg", data: base64Image.split(',')[1] } }
         ]
-      }],
-      // Using 'BLOCK_ONLY_HIGH' to be as permissive as possible
-      safetySettings: [
-        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" }
-      ]
+      }]
     })
   });
 
   const data = await response.json();
-  
-  if (!data.candidates || !data.candidates[0].content.parts[0].text) {
-    throw new Error("The AI returned an empty report. Please try taking the photo from a different angle.");
+
+  if (data.error) {
+    throw new Error(`Google Error: ${data.error.message}`);
   }
 
   try {
     const textResult = data.candidates[0].content.parts[0].text;
+    // Clean up any markdown code blocks the AI might include
     const cleanJson = textResult.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(cleanJson);
     
-    // Safety check to ensure dots show up
-    if (!parsed.signals || parsed.signals.length === 0) {
-      throw new Error("No markers found in this view.");
-    }
-
+    // Safety check to ensure data fits the Drawer UI requirements
     parsed.signals = parsed.signals.map((s: any, index: number) => ({
       id: s.id || String(index),
-      type: 'info',
-      x: s.x || 50,
-      y: s.y || 50,
-      label: s.label.toUpperCase(),
-      description: s.description
+      type: s.type || 'info',
+      x: Number(s.x) || 50,
+      y: Number(s.y) || 50,
+      label: String(s.label || "Visual Point").toUpperCase(),
+      description: String(s.description || "No description available.")
     }));
     
     return parsed;
   } catch (e) {
-    throw new Error("Unable to parse the AI's visual report.");
+    console.error("Parse Error:", e);
+    throw new Error("The AI response was incompatible. Try again.");
   }
 }
