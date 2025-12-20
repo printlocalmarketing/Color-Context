@@ -1,5 +1,5 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { AnalysisResponse, AppMode } from "../types";
 
 const getSystemInstruction = (mode: AppMode) => `
