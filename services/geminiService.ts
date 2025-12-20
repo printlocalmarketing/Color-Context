@@ -32,7 +32,6 @@ Output MUST be valid JSON.
 
 export async function analyzeImage(base64Image: string, mode: AppMode): Promise<AnalysisResponse> {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  // UPDATED TO 2.5 FLASH
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
   const response = await fetch(url, {
@@ -44,4 +43,65 @@ export async function analyzeImage(base64Image: string, mode: AppMode): Promise<
           parts: [
             { text: `Analyzing in ${mode} mode. Find 2-4 visual signs. Assign riskLevel if you see raw/spoiled signals. Pay extra attention to egg white status (pink tints or glossiness) if eggs are present.` },
             { 
-              inlineData: {
+              inlineData: { 
+                mimeType: "image/jpeg", 
+                data: base64Image.split(',')[1] || base64Image 
+              } 
+            }
+          ]
+        }
+      ],
+      systemInstruction: {
+        parts: [{ text: getSystemInstruction(mode) }]
+      },
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "OBJECT",
+          properties: {
+            signals: {
+              type: "ARRAY",
+              items: {
+                type: "OBJECT",
+                properties: {
+                  id: { type: "STRING" },
+                  x: { type: "NUMBER" },
+                  y: { type: "NUMBER" },
+                  observation: { type: "STRING" },
+                  interpretation: { type: "STRING" },
+                  riskLevel: { type: "STRING", enum: ["none", "alert", "critical"] }
+                },
+                required: ["id", "x", "y", "observation", "interpretation", "riskLevel"]
+              }
+            }
+          },
+          required: ["signals"]
+        }
+      }
+    })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error?.message || "Analysis failed");
+  }
+
+  const data = await response.json();
+  
+  try {
+    const textResult = data.candidates[0].content.parts[0].text;
+    const parsed = JSON.parse(textResult);
+
+    return {
+      signals: parsed.signals.map((s: any) => ({
+        ...s,
+        type: s.riskLevel === 'none' ? 'info' : s.riskLevel,
+        label: s.observation.toUpperCase(),
+        description: s.interpretation
+      }))
+    } as AnalysisResponse;
+  } catch (e) {
+    console.error("Failed to parse Gemini response", e);
+    throw new Error("Decoding failure: The visual signs were too complex to read.");
+  }
+}
