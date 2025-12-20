@@ -1,25 +1,28 @@
 export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cooking') {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  // Use the standard v1beta URL that successfully generated dots earlier
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
-  const prompt = `You are a high-contrast visual assistant for the colorblind. 
-  Scan this image and identify 4 points of interest.
   
-  Instructions:
-  1. Look for any pink or salmon-colored areas in the egg whites. If found, place a marker EXACTLY on that pink spot.
-  2. Label pink areas as "UNUSUAL COLOR GRADIENT" and describe it as an indicator of organic change.
-  3. Mark the yolks as "YELLOW AREA".
-  4. Describe the edges of the eggs.
+  // Back to the version that actually worked for you
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-  Return ONLY a JSON object:
+  const prompt = `You are a high-contrast visual technician. 
+  Identify 4 markers in this image based on chromatic shifts.
+  
+  RULES:
+  1. If you see a pink, salmon, or red tint in the egg white, place the marker EXACTLY on that pink spot (NOT on the yellow yolk).
+  2. Label: "CHROMATIC ANOMALY"
+  3. Description: "Visual Sign: Unusual pink/salmon tint detected in the protein area. This is a red flag for spoilage or organic growth. Most users discard for safety."
+  
+  4. For the yolks, only mark them if they are standard yellow. Label: "YELLOW GRADIENT".
+  5. Never say "safe to eat." Only describe the colors you see.
+
+  Return ONLY JSON:
   {
     "signals": [
       {
         "id": "1",
         "type": "info",
-        "x": 50,
-        "y": 50,
+        "x": number,
+        "y": number,
         "label": "string",
         "description": "string"
       }
@@ -42,7 +45,7 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
   const data = await response.json();
 
   if (data.error) {
-    throw new Error(data.error.message);
+    throw new Error(`Model Error: ${data.error.message}`);
   }
 
   try {
@@ -50,7 +53,7 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
     const cleanJson = textResult.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(cleanJson);
     
-    // Formatting for your AI Studio side panel
+    // Formatting for your AI Studio-style Side Panel
     parsed.signals = parsed.signals.map((s: any, index: number) => ({
       id: s.id || String(index),
       type: 'info',
@@ -62,6 +65,6 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
     
     return parsed;
   } catch (e) {
-    throw new Error("The AI response was filtered. Try a different photo angle.");
+    throw new Error("The AI is currently filtering this image. Try a different angle.");
   }
 }
