@@ -31,6 +31,7 @@ Output MUST be valid JSON.
 `;
 
 export async function analyzeImage(base64Image: string, mode: AppMode): Promise<AnalysisResponse> {
+  // Using your Vercel Environment Variable
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
@@ -92,11 +93,10 @@ export async function analyzeImage(base64Image: string, mode: AppMode): Promise<
     const textResult = data.candidates[0].content.parts[0].text;
     const parsed = JSON.parse(textResult);
 
-    // Map the Studio schema back to your UI dot types
+    // This ensures your UI still gets the 'type', 'label', and 'description' it needs
     return {
       signals: parsed.signals.map((s: any) => ({
         ...s,
-        // UI expects 'type', Studio uses 'riskLevel'
         type: s.riskLevel === 'none' ? 'info' : s.riskLevel,
         label: s.observation.toUpperCase(),
         description: s.interpretation
