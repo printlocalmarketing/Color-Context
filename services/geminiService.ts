@@ -2,15 +2,17 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-  const prompt = `You are a high-precision spatial grounding assistant. 
-  Analyze this image. Identify only the MOST relevant points (minimum 2, maximum 5).
+  const prompt = `You are a high-precision spatial assistant. 
+  Task: Identify exactly 3-4 markers. Use [0, 1000] normalized coordinates.
 
-  PRECISION RULES:
-  1. Use a [0, 1000] coordinate system where (0,0) is top-left and (1000,1000) is bottom-right.
-  2. For the MEAT: Place the marker directly in the center of the pinkest/reddest part.
-  3. For EGG WHITES: If you see pink/salmon tints, place a marker EXACTLY on the tint.
-  4. Only use the "Critical" type for ACTUAL safety risks (like the pink bacteria or raw center). Use "Info" for everything else.
-  5. Do NOT mark backgrounds, cutting boards, or irrelevant props.
+  ACCURACY RULES:
+  1. For YOLKS: Place the marker directly in the GEOMETRIC CENTER of the yellow circle.
+  2. For PINK TINTS: Place the marker in the densest part of the pink/salmon hue in the white.
+  3. Label the left yolk "LEFT YOLK" and the right yolk "RIGHT YOLK" for clarity.
+
+  CRITICAL VS INFO RULES:
+  - ONLY use "critical" if you see the pink/salmon bacteria tint.
+  - Use "info" for yolks, edges, or normal textures. Do NOT mark healthy yolks as critical.
 
   Return ONLY JSON:
   {
@@ -47,11 +49,12 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
     const cleanJson = textResult.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(cleanJson);
     
-    // Convert the AI's 0-1000 coordinates to the 0-100 percentage your UI needs
     parsed.signals = (parsed.signals || []).map((s: any, index: number) => ({
       id: s.id || String(index),
+      // Only allow 'critical' if the AI explicitly chose it for a danger
       type: s.type === 'critical' ? 'critical' : 'info',
-      x: (Number(s.x) / 10) || 50, // 750 becomes 75%
+      // We divide by 10 because the UI expects 0-100, but 0-1000 is more accurate for the AI
+      x: (Number(s.x) / 10) || 50,
       y: (Number(s.y) / 10) || 50,
       label: String(s.label).toUpperCase(),
       description: String(s.description)
@@ -59,6 +62,6 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
     
     return parsed;
   } catch (e) {
-    throw new Error("The AI report was blocked or formatted incorrectly. Try again.");
+    throw new Error("The AI report was formatted incorrectly. Try again.");
   }
 }
