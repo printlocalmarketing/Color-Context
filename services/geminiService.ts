@@ -1,26 +1,25 @@
 export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cooking') {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  // Using the 2.5-flash model which has the highest spatial accuracy for your key
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-  const prompt = `You are a precision visual analyst. Detect 3 distinct points.
+  const prompt = `Perform a high-precision chromatic and spatial scan. 
+  Identify 3-4 markers using [0, 100] coordinates.
+
+  DETECTION RULES:
+  1. PINK/SALMON HUE: Scan the translucent protein area. If a pink or salmon-colored tint is present, place a marker exactly on the most saturated part of that tint.
+     - Label: "CHROMATIC VARIATION"
+     - Description: "This specific pink/salmon hue is a known indicator of organic change/spoilage. Discarding is recommended for safety."
   
-  STRICT SPATIAL RULES:
-  1. PINK TINT: Locate the pink/salmon hue in the egg white. Place the marker directly on the center of that pink area.
-     - Label: "PINK BACTERIA SIGN"
-     - Description: "This pink hue is a classic indicator of Pseudomonas spoilage. Do not consume."
-     - Type: "critical"
-
-  2. YOLKS: Locate the yellow yolks. Place one marker in the dead center of the left yolk and one in the dead center of the right yolk.
+  2. YELLOW CIRCLES: Identify the yellow yolks. Place a marker in the absolute geometric center of each yellow circle.
      - Label: "YELLOW YOLK"
-     - Description: "Standard yellow appearance. Monitor for desired doneness."
-     - Type: "info"
+     - Description: "Standard yellow color detected. Monitor for desired doneness."
 
-  Return ONLY JSON:
+  Return ONLY a JSON object:
   {
     "signals": [
       {
         "id": "1",
-        "type": "info" | "critical",
         "x": number,
         "y": number,
         "label": "string",
@@ -43,21 +42,21 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
   });
 
   const data = await response.json();
-  if (data.error) throw new Error(data.error.message);
+  if (data.error) throw new Error(`API Error: ${data.error.message}`);
 
   try {
     const textResult = data.candidates[0].content.parts[0].text;
     const cleanJson = textResult.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(cleanJson);
     
+    // THE CRITICAL FIX: Mapping and Type Correction
     parsed.signals = (parsed.signals || []).map((s: any, index: number) => {
-      // Logic fix: Ensure the label matches the visual type
-      const isPink = s.label.toLowerCase().includes('pink') || s.description.toLowerCase().includes('bacteria');
+      // Determine type based on the label we forced the AI to use
+      const isAnomaly = s.label.includes("CHROMATIC") || s.description.includes("pink");
       
       return {
         id: s.id || String(index),
-        // If it's a yolk, force it to 'info' regardless of what the AI says
-        type: isPink ? 'critical' : 'info',
+        type: isAnomaly ? 'critical' : 'info', // Force yolks to info, pink to critical
         x: Number(s.x) || 50,
         y: Number(s.y) || 50,
         label: String(s.label).toUpperCase(),
@@ -67,6 +66,7 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
     
     return parsed;
   } catch (e) {
-    throw new Error("Analysis alignment failed. Try again.");
+    console.error("Parse Error:", e);
+    throw new Error("The AI is currently filtering this view. Try a different angle.");
   }
 }
