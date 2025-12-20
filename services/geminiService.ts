@@ -1,12 +1,16 @@
 export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cooking') {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  
+  // Using the 2.5 Flash model which is the active free tier for late 2025
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
   const prompt = `You are a high-contrast visual assistant for the colorblind. 
-  Scan this ${mode} image and find 4 key points. 
-  For each point, provide a JSON object. 
-  
-  CRITICAL: The "description" must be a simple string under 100 characters.
+  Scan this ${mode} image and find 4 key points of interest. 
+
+  CRITICAL SAFETY RULE: Never tell the user food is "safe to eat" or "perfectly cooked" based only on color. 
+  Instead, describe visual signs (e.g., "The edge has turned opaque white"). 
+  Specifically for eggs, warn that translucency or pink/salmon tints are red flags for bacteria (Pseudomonas) or spoilage. 
+  Most people would toss this out to stay safe.
   
   Return ONLY this JSON structure:
   {
@@ -16,8 +20,8 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
         "type": "info",
         "x": 50,
         "y": 50,
-        "label": "Name of object",
-        "description": "Color and safety info"
+        "label": "Brief Visual Sign (e.g. Pink Tint)",
+        "description": "What it means (e.g. Warning: Bacteria/Spoilage)"
       }
     ]
   }`;
@@ -36,15 +40,18 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
   });
 
   const data = await response.json();
-  if (data.error) throw new Error(data.error.message);
+
+  if (data.error) {
+    throw new Error(`Google Error: ${data.error.message}`);
+  }
 
   try {
     const textResult = data.candidates[0].content.parts[0].text;
+    // Clean up any markdown code blocks the AI might include
     const cleanJson = textResult.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(cleanJson);
     
-    // SAFETY CHECK: This prevents the black screen crash
-    // It makes sure every dot has a valid label and description string.
+    // Safety check to ensure data fits the Drawer UI requirements
     parsed.signals = parsed.signals.map((s: any, index: number) => ({
       id: s.id || String(index),
       type: s.type || 'info',
