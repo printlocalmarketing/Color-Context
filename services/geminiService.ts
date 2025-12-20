@@ -41,14 +41,18 @@ Schema:
 `;
 
 export const analyzeImage = async (base64Image: string, mode: AppMode): Promise<AnalysisResponse> => {
-  // 1. CHANGED TO YOUR NEW UNRESTRICTED KEY
-  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+  // Use the working Vercel key
+  const ai = new GoogleGenAI(import.meta.env.VITE_GEMINI_API_KEY);
   
-  const response = await ai.models.generateContent({
-    // Using 2.5 flash as discussed for better grounding
-    model: "gemini-2.5-flash", 
+  const model = ai.getGenerativeModel({ 
+    model: "gemini-2.5-flash",
+    systemInstruction: getSystemInstruction(mode)
+  });
+  
+  const result = await model.generateContent({
     contents: [
       {
+        role: "user",
         parts: [
           {
             inlineData: {
@@ -62,8 +66,7 @@ export const analyzeImage = async (base64Image: string, mode: AppMode): Promise<
         ]
       }
     ],
-    config: {
-      systemInstruction: getSystemInstruction(mode),
+    generationConfig: {
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
@@ -90,14 +93,16 @@ export const analyzeImage = async (base64Image: string, mode: AppMode): Promise<
   });
 
   try {
-    // 2. ENSURING COMPATIBILITY: Mapping Studio's 'riskLevel' to UI's 'type'
-    const rawData = JSON.parse(response.text);
+    const response = await result.response;
+    const rawData = JSON.parse(response.text());
+
+    // This is the ONLY bridge needed: mapping the AI output names to your UI names
     return {
-      signals: rawData.signals.map((s: any) => ({
+      signals: (rawData.signals || []).map((s: any) => ({
         ...s,
         type: s.riskLevel === 'none' ? 'info' : s.riskLevel,
-        label: s.observation.toUpperCase(),
-        description: s.interpretation
+        label: (s.observation || "Observation").toUpperCase(),
+        description: s.interpretation || ""
       }))
     } as AnalysisResponse;
   } catch (error) {
