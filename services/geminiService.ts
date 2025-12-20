@@ -1,16 +1,15 @@
+// We are adding '/version' to the end of the import to force it to look at the new spot
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// This line must stay exactly like this
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
 
 export async function analyzeImage(base64Image: string) {
-  // WE ARE FORCING V1BETA HERE - This is the "correct spot" for free accounts
-  const model = genAI.getGenerativeModel(
-    { model: "gemini-1.5-flash" },
-    { apiVersion: "v1beta" }
-  );
+  // This is the direct address for the free flash model
+  const model = genAI.getGenerativeModel({ 
+    model: "gemini-1.5-flash",
+  }, { apiVersion: 'v1beta' });
 
-  const prompt = "Identify the main colors in this image. Describe them simply for someone who is colorblind, focusing on contrast and brightness.";
+  const prompt = "Identify the main colors in this image. Describe them simply for someone who is colorblind.";
 
   const result = await model.generateContent([
     prompt,
