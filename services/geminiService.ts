@@ -2,16 +2,23 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-  const prompt = `You are a high-contrast visual assistant for the colorblind. 
-  Scan this image. Locate the EXACT coordinates (x, y) where any unusual colors appear.
+  const prompt = `You are a high-contrast visual technician. 
+  Task: Identify 4 markers in this image based on chromatic shifts.
+  
+  RULES:
+  1. If the EGG WHITE has a pink, salmon, or red tint, place a marker EXACTLY on the pink tint (not the yolk). 
+     Label: "UNUSUAL COLOR GRADIENT"
+     Description: "Visual anomaly detected: Pink/Salmon hue in the protein area. This is a high-risk indicator of organic spoilage. Discard recommended."
+  
+  2. For the YOLK, only mark it if it is a standard yellow.
+     Label: "STANDARD TEXTURE"
+     Description: "Center appears as expected for a standard yolk."
 
-  CRITICAL SAFETY RULES:
-  1. If you see pink, salmon, or red in the EGG WHITE, place the marker directly on that pink area of the white, NOT on the yellow yolk.
-  2. Differentiate between a "Bright Yellow Yolk" (which is healthy/normal) and "Pink/Translucent Whites" (which is a sign of Pseudomonas bacteria).
-  3. Only use the "Critical" label for actual dangers like the pink bacteria. Do not call a normal yolk "Critical."
-  4. Never say food is "safe." Only describe visual facts like "The white is turning opaque" or "Noticeable pink tint detected."
+  3. Identify the EDGES. 
+     Label: "EDGE ANALYSIS"
+     Description: "The perimeter shows [describe color]. Verify if this matches your target cook level."
 
-  Return ONLY this JSON structure:
+  Return JSON ONLY:
   {
     "signals": [
       {
@@ -34,22 +41,22 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
           { text: prompt },
           { inlineData: { mimeType: "image/jpeg", data: base64Image.split(',')[1] } }
         ]
-      }]
+      }],
+      // This tells the AI to be less restrictive with its filters
+      safetySettings: [
+        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+      ]
     })
   });
 
   const data = await response.json();
-
-  if (data.error) {
-    throw new Error(`Google Error: ${data.error.message}`);
-  }
+  if (data.error) throw new Error(data.error.message);
 
   try {
     const textResult = data.candidates[0].content.parts[0].text;
     const cleanJson = textResult.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(cleanJson);
     
-    // Safety check to ensure data fits the AI Studio-style Side Panel
     parsed.signals = parsed.signals.map((s: any, index: number) => ({
       id: s.id || String(index),
       type: s.type || 'info',
@@ -61,7 +68,6 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
     
     return parsed;
   } catch (e) {
-    console.error("Parse Error:", e);
-    throw new Error("The AI response was incompatible. Try again.");
+    throw new Error("The AI response was filtered or messy. Try again.");
   }
 }
