@@ -1,3 +1,4 @@
+import { GoogleGenAI, Type } from "@google/genai";
 import { AnalysisResponse, AppMode } from "../types";
 
 const getSystemInstruction = (mode: AppMode) => `
@@ -28,80 +29,79 @@ TONE & LANGUAGE:
 3. IMPORTANT: Do NOT repeat the field labels (like "The Visual Sign:" or "What It Means:") inside your descriptions. Start the sentence immediately.
 
 Output MUST be valid JSON.
+
+Schema:
+- signals: array of objects
+  - id: unique string
+  - x: horizontal percentage (0-100)
+  - y: vertical percentage (0-100)
+  - observation: Physical description of color/texture.
+  - interpretation: The savvy partner explanation of the sign.
+  - riskLevel: "none", "alert", or "critical"
 `;
 
-export async function analyzeImage(base64Image: string, mode: AppMode): Promise<AnalysisResponse> {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [
-            { text: `Analyzing in ${mode} mode. Find 2-4 visual signs. Assign riskLevel if you see raw/spoiled signals. Pay extra attention to egg white status (pink tints or glossiness) if eggs are present.` },
-            { 
-              inlineData: { 
-                mimeType: "image/jpeg", 
-                data: base64Image.split(',')[1] || base64Image 
-              } 
-            }
-          ]
-        }
-      ],
-      systemInstruction: {
-        parts: [{ text: getSystemInstruction(mode) }]
-      },
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "OBJECT",
-          properties: {
-            signals: {
-              type: "ARRAY",
-              items: {
-                type: "OBJECT",
-                properties: {
-                  id: { type: "STRING" },
-                  x: { type: "NUMBER" },
-                  y: { type: "NUMBER" },
-                  observation: { type: "STRING" },
-                  interpretation: { type: "STRING" },
-                  riskLevel: { type: "STRING", enum: ["none", "alert", "critical"] }
-                },
-                required: ["id", "x", "y", "observation", "interpretation", "riskLevel"]
-              }
+export const analyzeImage = async (base64Image: string, mode: AppMode): Promise<AnalysisResponse> => {
+  // 1. CHANGED TO YOUR NEW UNRESTRICTED KEY
+  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+  
+  const response = await ai.models.generateContent({
+    // Using 2.5 flash as discussed for better grounding
+    model: "gemini-2.5-flash", 
+    contents: [
+      {
+        parts: [
+          {
+            inlineData: {
+              mimeType: "image/jpeg",
+              data: base64Image.split(',')[1] || base64Image
             }
           },
-          required: ["signals"]
-        }
+          {
+            text: `Analyzing in ${mode} mode. Find 2-4 visual signs. Assign riskLevel if you see raw/spoiled signals. Pay extra attention to egg white status (pink tints or glossiness) if eggs are present.`
+          }
+        ]
       }
-    })
+    ],
+    config: {
+      systemInstruction: getSystemInstruction(mode),
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          signals: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                id: { type: Type.STRING },
+                x: { type: Type.NUMBER },
+                y: { type: Type.NUMBER },
+                observation: { type: Type.STRING },
+                interpretation: { type: Type.STRING },
+                riskLevel: { type: Type.STRING, enum: ["none", "alert", "critical"] }
+              },
+              required: ["id", "x", "y", "observation", "interpretation", "riskLevel"]
+            }
+          }
+        },
+        required: ["signals"]
+      }
+    }
   });
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error?.message || "Analysis failed");
-  }
-
-  const data = await response.json();
-  
   try {
-    const textResult = data.candidates[0].content.parts[0].text;
-    const parsed = JSON.parse(textResult);
-
+    // 2. ENSURING COMPATIBILITY: Mapping Studio's 'riskLevel' to UI's 'type'
+    const rawData = JSON.parse(response.text);
     return {
-      signals: parsed.signals.map((s: any) => ({
+      signals: rawData.signals.map((s: any) => ({
         ...s,
         type: s.riskLevel === 'none' ? 'info' : s.riskLevel,
         label: s.observation.toUpperCase(),
         description: s.interpretation
       }))
     } as AnalysisResponse;
-  } catch (e) {
-    console.error("Failed to parse Gemini response", e);
+  } catch (error) {
+    console.error("Failed to parse Gemini response", error);
     throw new Error("Decoding failure: The visual signs were too complex to read.");
   }
-}
+};
