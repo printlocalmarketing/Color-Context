@@ -2,32 +2,15 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-  const prompt = `You are a high-precision chromatic analyst. Detect 3 key points.
-  
-  STRICT POSITIONING RULES:
-  1. YOLKS: Place the marker directly in the dead center of the yellow circle.
-     - Label: "YELLOW YOLK"
-     - Description: "Standard yellow appearance. Monitor for desired doneness."
-     - Type: "info"
+  const prompt = `You are Color Context, a savvy partner helping a colorblind friend. 
+  Analyze this ${mode} image for visual signs people use to judge status.
 
-  2. PINK AREA: Scan for any pink/salmon tint in the egg white. Place the marker exactly on the most saturated pink pixel.
-     - Label: "PINK BACTERIA SIGN"
-     - Description: "This pink hue is a classic indicator of Pseudomonas spoilage. Discarding is recommended for safety."
-     - Type: "critical"
+  SPECIFIC LOGIC FOR EGGS:
+  - UNUSUAL PINK TINT: If an egg white shows pink/salmon tints, assign "critical" and interpret as: "This unusual pink tint is a red flag for bacteria/spoilage. Most people would likely toss this out to stay safe."
+  - COOKING STATUS: If egg white is glossy or translucent, mark as "alert" and interpret as: "STILL SETTING: The glossy surface means proteins haven't fully set. Most wait for a completely matte, opaque white look."
+  - YOLKS: Mark "none" risk for standard yellow yolks.
 
-  Return ONLY JSON:
-  {
-    "signals": [
-      {
-        "id": "1",
-        "type": "info" | "critical",
-        "x": number,
-        "y": number,
-        "label": "string",
-        "description": "string"
-      }
-    ]
-  }`;
+  ACCURACY RULE: Use [0, 100] coordinates. Place markers in the GEOMETRIC CENTER of the feature (the center of the yolk or the center of the pink zone).`;
 
   const response = await fetch(url, {
     method: 'POST',
@@ -38,7 +21,30 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
           { text: prompt },
           { inlineData: { mimeType: "image/jpeg", data: base64Image.split(',')[1] } }
         ]
-      }]
+      }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "OBJECT",
+          properties: {
+            signals: {
+              type: "ARRAY",
+              items: {
+                type: "OBJECT",
+                properties: {
+                  id: { type: "STRING" },
+                  x: { type: "NUMBER" },
+                  y: { type: "NUMBER" },
+                  label: { type: "STRING" },
+                  description: { type: "STRING" },
+                  type: { type: "STRING", enum: ["none", "alert", "critical"] }
+                },
+                required: ["id", "x", "y", "label", "description", "type"]
+              }
+            }
+          }
+        }
+      }
     })
   });
 
@@ -47,26 +53,21 @@ export async function analyzeImage(base64Image: string, mode: 'shopping' | 'cook
 
   try {
     const textResult = data.candidates[0].content.parts[0].text;
-    const cleanJson = textResult.replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(cleanJson);
+    const parsed = JSON.parse(textResult);
     
-    // THIS IS THE FIX: We force the type based on what the AI actually found
-    parsed.signals = (parsed.signals || []).map((s: any, index: number) => {
-      const isPink = s.label.toLowerCase().includes('pink') || s.description.toLowerCase().includes('bacteria');
-      
-      return {
-        id: s.id || String(index),
-        // If the AI says 'yolk' but marks it 'critical', we force it back to 'info'
-        type: isPink ? 'critical' : 'info',
-        x: Number(s.x) || 50,
-        y: Number(s.y) || 50,
-        label: String(s.label).toUpperCase(),
-        description: String(s.description)
-      };
-    });
+    // Final mapping to ensure Drawer UI works perfectly
+    parsed.signals = parsed.signals.map((s: any, index: number) => ({
+      id: s.id || String(index),
+      type: s.type === 'none' ? 'info' : s.type, // Map 'none' to 'info' for your UI
+      x: Number(s.x) || 50,
+      y: Number(s.y) || 50,
+      label: String(s.label).toUpperCase(),
+      description: String(s.description)
+    }));
     
     return parsed;
   } catch (e) {
-    throw new Error("Analysis failed to align. Please try a clearer photo.");
+    console.error("Studio Logic Parse Error:", e);
+    throw new Error("The visual signs were too complex to read. Try again.");
   }
 }
