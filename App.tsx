@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { analyzeImage } from './services/geminiService';
 import { audioService } from './services/audioService';
@@ -21,6 +20,20 @@ const App: React.FC = () => {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const themeMenuRef = useRef<HTMLDivElement>(null);
+
+  // NEW: Check for existing agreement on load
+  useEffect(() => {
+    const hasAgreed = localStorage.getItem('color-context-agreed');
+    if (!hasAgreed) {
+      setIsSafetyOpen(true);
+    }
+  }, []);
+
+  // Handle agreement from modal
+  const handleAgree = () => {
+    localStorage.setItem('color-context-agreed', 'true');
+    setIsSafetyOpen(false);
+  };
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -120,13 +133,11 @@ const App: React.FC = () => {
 
   return (
     <div className={`min-h-screen flex flex-col relative overflow-hidden transition-colors duration-500 pb-32 ${theme === 'light' ? 'bg-[#f5f5f5] text-gray-900' : 'bg-[#0a0a0a] text-white'}`}>
-      {/* Background Ambience */}
       <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
         <div className={`absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full blur-[120px] ${theme === 'light' ? 'bg-blue-200/20' : 'bg-blue-500/10'}`} />
         <div className={`absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full blur-[150px] ${theme === 'light' ? 'bg-gray-300/20' : 'bg-white/5'}`} />
       </div>
 
-      {/* Header */}
       <header className="p-6 sm:p-10 flex flex-col sm:flex-row gap-6 justify-between items-center z-30">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 glass-card rounded-2xl flex items-center justify-center border-2 border-white/20">
@@ -139,7 +150,6 @@ const App: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-4 flex-wrap justify-center">
-          {/* Safety Standards Button */}
           <button 
             onClick={() => { setIsSafetyOpen(true); audioService.playClick(); }}
             className="px-5 py-2.5 glass rounded-full text-[10px] uppercase tracking-widest font-black opacity-60 hover:opacity-100 transition-all flex items-center gap-2 border border-white/10"
@@ -148,7 +158,6 @@ const App: React.FC = () => {
             Safety Standards
           </button>
 
-          {/* Mode Toggle */}
           <div className="glass p-1.5 rounded-full flex gap-1 border border-white/10">
             <button 
               onClick={() => toggleMode('shopping')}
@@ -197,7 +206,6 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="flex-1 flex flex-col items-center justify-start px-6 max-w-5xl mx-auto w-full pt-4">
         {!image ? (
           <div className="w-full aspect-video flex flex-col items-center justify-center animate-in fade-in duration-1000">
@@ -213,10 +221,11 @@ const App: React.FC = () => {
           </div>
         ) : (
           <div className="w-full relative flex flex-col items-center gap-8">
-            <div className="relative w-full aspect-auto glass rounded-[2.5rem] overflow-hidden shadow-[0_40px_100px_rgba(0,0,0,0.4)] border-4 border-black animate-in fade-in zoom-in-95 duration-1000">
+            {/* DRIFT FIX: Changed to inline-block and block img */}
+            <div className="relative inline-block glass rounded-[2.5rem] overflow-hidden shadow-[0_40px_100px_rgba(0,0,0,0.4)] border-4 border-black animate-in fade-in zoom-in-95 duration-1000">
               <img 
                 src={image} 
-                className={`w-full h-full object-contain transition-all duration-1000 ${isAnalyzing ? 'blur-xl opacity-30 grayscale' : 'blur-0 opacity-100 grayscale-0'}`} 
+                className={`max-w-full h-auto block transition-all duration-1000 ${isAnalyzing ? 'blur-xl opacity-30 grayscale' : 'blur-0 opacity-100 grayscale-0'}`} 
                 alt="Source" 
               />
               
@@ -256,7 +265,6 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* Action Bar */}
       <div className={`fixed bottom-0 left-0 right-0 p-8 z-40 pt-16 ${theme === 'light' ? 'bg-gradient-to-t from-white via-white/90 to-transparent' : 'bg-gradient-to-t from-black via-black/90 to-transparent'}`}>
         <div className="max-w-md mx-auto">
           <button 
@@ -285,7 +293,14 @@ const App: React.FC = () => {
       />
 
       <Drawer signal={activeSignal} mode={mode} onClose={() => setActiveSignal(null)} />
-      <SafetyModal isOpen={isSafetyOpen} onClose={() => setIsSafetyOpen(false)} theme={theme} />
+      
+      {/* Updated SafetyModal call with onAgree handler */}
+      <SafetyModal 
+        isOpen={isSafetyOpen} 
+        onClose={() => setIsSafetyOpen(false)} 
+        onAgree={handleAgree}
+        theme={theme} 
+      />
     </div>
   );
 };
