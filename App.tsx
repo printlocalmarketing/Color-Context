@@ -21,7 +21,7 @@ const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const themeMenuRef = useRef<HTMLDivElement>(null);
 
-  // NEW: Check for existing agreement on load
+  // Checks for the agreement "badge" on phone storage
   useEffect(() => {
     const hasAgreed = localStorage.getItem('color-context-agreed');
     if (!hasAgreed) {
@@ -29,7 +29,7 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Handle agreement from modal
+  // Sets the badge so the modal doesn't pop up again for this user
   const handleAgree = () => {
     localStorage.setItem('color-context-agreed', 'true');
     setIsSafetyOpen(false);
@@ -220,8 +220,8 @@ const App: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="w-full relative flex flex-col items-center gap-8">
-            {/* DRIFT FIX: Changed to inline-block and block img */}
+          <div className="w-full flex justify-center">
+            {/* DRIFT KILLER: Using 'inline-block' to wrap the photo exactly */}
             <div className="relative inline-block glass rounded-[2.5rem] overflow-hidden shadow-[0_40px_100px_rgba(0,0,0,0.4)] border-4 border-black animate-in fade-in zoom-in-95 duration-1000">
               <img 
                 src={image} 
@@ -242,25 +242,18 @@ const App: React.FC = () => {
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-6">
                   <div className={`w-16 h-16 border-[6px] rounded-full animate-spin ${theme === 'light' ? 'border-gray-300 border-t-black' : 'border-white/10 border-t-white'}`} />
                   <div className="text-center">
-                    <p className="text-2xl font-black uppercase tracking-widest mb-2">Analyzing signals...</p>
-                    <p className="opacity-40 text-[11px] uppercase tracking-[0.3em] font-black">Scanning for visual identifiers</p>
+                    <p className="text-2xl font-black uppercase tracking-widest mb-2">Analyzing...</p>
                   </div>
                 </div>
               )}
             </div>
+          </div>
+        )}
 
-            {error && (
-              <div className="w-full p-5 rounded-2xl bg-black border-2 border-red-500 text-red-500 text-sm font-bold flex items-center gap-4 animate-in slide-in-from-bottom-2">
-                <i className="fa-solid fa-circle-exclamation text-xl"></i>
-                <p className="uppercase tracking-widest">{error}</p>
-              </div>
-            )}
-
-            <div className={`transition-opacity duration-1000 ${isAnalyzing ? 'opacity-0' : 'opacity-100'}`}>
-              <p className="opacity-40 text-xs tracking-[0.4em] uppercase font-black bg-black/5 px-6 py-2 rounded-full">
-                {signals.length > 0 ? "Tap markers for high-contrast translation" : "Translating scene..."}
-              </p>
-            </div>
+        {error && (
+          <div className="w-full mt-8 p-5 rounded-2xl bg-black border-2 border-red-500 text-red-500 text-sm font-bold flex items-center gap-4 animate-in slide-in-from-bottom-2">
+            <i className="fa-solid fa-circle-exclamation text-xl"></i>
+            <p className="uppercase tracking-widest">{error}</p>
           </div>
         )}
       </main>
@@ -273,14 +266,9 @@ const App: React.FC = () => {
           >
             <i className="fa-solid fa-camera text-2xl"></i>
             <span className="text-sm uppercase tracking-[0.2em] font-black">
-              {image ? 'TAKE OR UPLOAD NEW PHOTO' : 'TAKE OR UPLOAD PHOTO'}
+              {image ? 'NEW PHOTO' : 'TAKE OR UPLOAD PHOTO'}
             </span>
           </button>
-          
-          <div className="mt-6 text-center text-[10px] opacity-20 uppercase tracking-[0.5em] font-black hidden sm:block">
-            <span className="block mb-1">Color Context's Note</span>
-            <p>Color Context is a visual guide. For final safety, please follow standard cooking instructions or food safety guidelines.</p>
-          </div>
         </div>
       </div>
 
@@ -294,10 +282,12 @@ const App: React.FC = () => {
 
       <Drawer signal={activeSignal} mode={mode} onClose={() => setActiveSignal(null)} />
       
-      {/* Updated SafetyModal call with onAgree handler */}
+      {/* HARD-LOCKED MODAL: 
+        1. No onClose bypass. 
+        2. Users must click handleAgree to set the badge. 
+      */}
       <SafetyModal 
         isOpen={isSafetyOpen} 
-        onClose={() => setIsSafetyOpen(false)} 
         onAgree={handleAgree}
         theme={theme} 
       />
