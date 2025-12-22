@@ -10,45 +10,44 @@ interface DrawerProps {
 export const Drawer: React.FC<DrawerProps> = ({ signal, mode, onClose }) => {
   if (!signal) return null;
 
-  // Determine if this is a "danger" sign based on the AI's risk assessment
+  // Logic to determine the icon based on the label/description
+  const getIcon = () => {
+    const text = (signal.label + signal.description).toLowerCase();
+    if (text.includes('beef') || text.includes('steak')) return 'fa-cow';
+    if (text.includes('fish') || text.includes('salmon')) return 'fa-fish';
+    if (text.includes('poultry') || text.includes('chicken')) return 'fa-kiwi-bird';
+    if (text.includes('pork') || text.includes('pig')) return 'fa-piggy-bank';
+    if (text.includes('egg')) return 'fa-egg';
+    return 'fa-magnifying-glass';
+  };
+
   const isCritical = signal.riskLevel === 'critical' || signal.label.toLowerCase().includes('pink');
 
   return (
     <div className="fixed inset-0 z-[120] flex justify-end overflow-hidden">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/80 backdrop-blur-md animate-in fade-in duration-500" 
-        onClick={onClose} 
-      />
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-md animate-in fade-in duration-500" onClick={onClose} />
       
-      {/* Side Panel */}
       <div className={`
         relative w-full max-w-md h-full flex flex-col gap-6 p-8 shadow-2xl animate-in slide-in-from-right duration-500
         ${isCritical ? 'bg-[#0f0a0a] border-l-4 border-red-600' : 'bg-[#121212] border-l border-white/10'}
       `}>
         
-        {/* Header Section */}
         <div className="flex justify-between items-center">
-          <div className={`px-4 py-1.5 rounded text-[10px] font-black uppercase tracking-[0.2em] 
+          <div className={`flex items-center gap-2 px-4 py-1.5 rounded text-[10px] font-black uppercase tracking-[0.2em] 
             ${isCritical ? 'bg-red-600 text-white animate-pulse' : 'bg-white text-black'}`}>
+            <i className={`fa-solid ${getIcon()}`}></i>
             {mode === 'cooking' ? 'Cooking Insight' : 'Shopping Signal'}
           </div>
-          <button 
-            onClick={onClose} 
-            className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center text-white hover:bg-white/5 active:scale-90 transition-all"
-          >
+          <button onClick={onClose} className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center text-white hover:bg-white/5 active:scale-90 transition-all">
             <i className="fa-solid fa-xmark text-lg"></i>
           </button>
         </div>
 
-        {/* Visual Sign Box */}
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
             <span className="bg-white/5 text-white/40 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-white/5">The Observation</span>
             {isCritical && (
-              <span className="bg-red-600/20 text-red-500 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-red-500/30">
-                Action Required
-              </span>
+              <span className="bg-red-600/20 text-red-500 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-red-500/30">Action Required</span>
             )}
           </div>
           <div className={`rounded-3xl p-8 border-4 ${isCritical ? 'bg-white border-red-600 shadow-[0_0_30px_rgba(220,38,38,0.2)]' : 'bg-white border-black'}`}>
@@ -58,7 +57,6 @@ export const Drawer: React.FC<DrawerProps> = ({ signal, mode, onClose }) => {
           </div>
         </div>
 
-        {/* What it Means Box */}
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
              <i className={`fa-solid ${isCritical ? 'fa-triangle-exclamation text-red-500' : 'fa-wand-magic-sparkles text-blue-400'}`}></i>
@@ -71,7 +69,6 @@ export const Drawer: React.FC<DrawerProps> = ({ signal, mode, onClose }) => {
           </div>
         </div>
 
-        {/* Action Recommendation for Testers */}
         {isCritical && (
           <div className="p-6 bg-yellow-500/10 border-2 border-yellow-500/20 rounded-2xl flex gap-4 items-start">
              <i className="fa-solid fa-temperature-three-quarters text-yellow-500 mt-1"></i>
@@ -82,7 +79,6 @@ export const Drawer: React.FC<DrawerProps> = ({ signal, mode, onClose }) => {
           </div>
         )}
 
-        {/* Footer Note */}
         <div className="mt-auto bg-black/40 border border-white/5 rounded-3xl p-8 flex flex-col gap-4">
           <div className="flex items-center gap-3 opacity-60">
             <div className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center">
@@ -91,7 +87,7 @@ export const Drawer: React.FC<DrawerProps> = ({ signal, mode, onClose }) => {
             <span className="text-[10px] uppercase font-black tracking-widest text-white">Safety Protocol</span>
           </div>
           <p className="text-[12px] text-white/30 leading-relaxed font-bold uppercase tracking-tight">
-            Color Context is a visual guide. Final safety decisions must be based on FDA-approved cooking methods and temperature verification.
+            Color Context is a visual guide. Final safety decisions must be based on FDA-approved methods.
           </p>
         </div>
       </div>
