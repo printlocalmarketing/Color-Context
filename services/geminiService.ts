@@ -2,7 +2,7 @@ import { AnalysisResponse, AppMode } from "../types";
 
 export async function analyzeImage(base64Image: string, mode: AppMode): Promise<AnalysisResponse> {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
   const prompt = `You are Color Context, a savvy partner helping a colorblind friend. 
   Your task is to analyze food in photos for visual signs that people typically use to judge status.
