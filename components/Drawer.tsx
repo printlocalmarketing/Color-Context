@@ -14,7 +14,7 @@ export const Drawer: React.FC<DrawerProps> = ({ signal, mode, onClose }) => {
   const getIcon = () => {
     const text = (signal.label + signal.description).toLowerCase();
 
-    // 1. Proteins (Existing)
+    // 1. Proteins
     if (text.includes('beef') || text.includes('steak')) return 'fa-cow';
     if (text.includes('fish') || text.includes('salmon')) return 'fa-fish';
     if (text.includes('poultry') || text.includes('chicken')) return 'fa-kiwi-bird';
@@ -30,13 +30,12 @@ export const Drawer: React.FC<DrawerProps> = ({ signal, mode, onClose }) => {
     // 4. Produce (Fruits & Avocados)
     if (text.includes('fruit') || text.includes('apple') || text.includes('berry') || text.includes('avocado')) return 'fa-apple-whole';
 
-    // 5. Grains (The Bread fix)
+    // 5. Grains (Bread & Mold)
     if (text.includes('bread') || text.includes('toast') || text.includes('grain') || text.includes('mold')) return 'fa-bread-slice';
 
     // Default Fallback
     return 'fa-magnifying-glass';
-  };
-
+};
   const isCritical = signal.riskLevel === 'critical' || signal.label.toLowerCase().includes('pink');
 
   return (
