@@ -13,11 +13,27 @@ export const Drawer: React.FC<DrawerProps> = ({ signal, mode, onClose }) => {
   // Logic to determine the icon based on the label/description
   const getIcon = () => {
     const text = (signal.label + signal.description).toLowerCase();
+
+    // 1. Proteins (Existing)
     if (text.includes('beef') || text.includes('steak')) return 'fa-cow';
     if (text.includes('fish') || text.includes('salmon')) return 'fa-fish';
     if (text.includes('poultry') || text.includes('chicken')) return 'fa-kiwi-bird';
     if (text.includes('pork') || text.includes('pig')) return 'fa-piggy-bank';
     if (text.includes('egg')) return 'fa-egg';
+
+    // 2. Dairy & Cheese
+    if (text.includes('cheese') || text.includes('dairy') || text.includes('milk')) return 'fa-cheese';
+
+    // 3. Produce (Leafy Greens & Veg)
+    if (text.includes('leaf') || text.includes('green') || text.includes('salad') || text.includes('veg')) return 'fa-leaf';
+
+    // 4. Produce (Fruits & Avocados)
+    if (text.includes('fruit') || text.includes('apple') || text.includes('berry') || text.includes('avocado')) return 'fa-apple-whole';
+
+    // 5. Grains (The Bread fix)
+    if (text.includes('bread') || text.includes('toast') || text.includes('grain') || text.includes('mold')) return 'fa-bread-slice';
+
+    // Default Fallback
     return 'fa-magnifying-glass';
   };
 
