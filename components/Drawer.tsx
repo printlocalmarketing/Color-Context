@@ -13,19 +13,11 @@ export const Drawer: React.FC<DrawerProps> = ({ signal, mode, onClose }) => {
   // Logic to determine the icon based on the label/description
   const getIcon = () => {
     const text = (signal.label + signal.description).toLowerCase();
-    
-    // Meats
     if (text.includes('beef') || text.includes('steak')) return 'fa-cow';
     if (text.includes('fish') || text.includes('salmon')) return 'fa-fish';
     if (text.includes('poultry') || text.includes('chicken')) return 'fa-kiwi-bird';
     if (text.includes('pork') || text.includes('pig')) return 'fa-piggy-bank';
-    
-    // Produce & Dairy
     if (text.includes('egg')) return 'fa-egg';
-    if (text.includes('cheese') || text.includes('milk') || text.includes('dairy')) return 'fa-cheese';
-    if (text.includes('veg') || text.includes('leaf') || text.includes('green') || text.includes('salad')) return 'fa-leaf';
-    if (text.includes('fruit') || text.includes('apple') || text.includes('berry') || text.includes('avocado')) return 'fa-apple-whole';
-    
     return 'fa-magnifying-glass';
   };
 
