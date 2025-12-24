@@ -8,18 +8,18 @@ export async function analyzeImage(base64Image: string, mode: AppMode): Promise<
   Your task is to analyze food in photos for visual signs that people typically use to judge status.
 
   STRICT FOCUS RULES:
-  1. ONLY identify signals on the food item itself (Beef, Fish, Poultry, Pork, or Eggs).
+  1. ONLY identify signals on the food item itself (Beef, Fish, Poultry, Pork, Eggs, Produce, or Dairy).
   2. COMPLETELY IGNORE packaging, labels, background, or supermarket lighting.
   3. DO NOT give direct safety commands. Instead, explain what "most people look for" to determine status.
 
   MODE: ${mode === 'shopping' ? 'SHOPPING INSIGHT' : 'COOKING INSIGHT'}
 
-  SPECIFIC PROTEIN LOGIC:
-  - BEEF: Look for 'Cherry Red' (fresh), 'Deep Purple' (vacuum-fresh), or 'Brown/Gray' (oxidizing).
-  - FISH: Look for 'Glassy/Translucent' (fresh) vs 'Milky/Opaque' (older). Check for 'Gaping' (flesh separating).
-  - POULTRY: Look for 'Glossy Pink/White' (raw) vs 'Opaque White' (cooked).
-  - PORK: Look for 'Pinkish-Red' (fresh) vs 'Pale/Grey' (oxidizing).
-  - EGGS: If egg whites show a pink/reddish tint, mark riskLevel "critical". If glossy/clear in cooking, mark riskLevel "alert".
+  SPECIFIC LOGIC:
+  - BEEF/PORK/POULTRY: Look for typical freshness colors (reds/pinks) vs oxidation (browns/grays).
+  - FISH: Look for 'Glassy' (fresh) vs 'Milky/Opaque' (older).
+  - EGGS: Check for unusual pink tints in whites or setting status during cooking.
+  - PRODUCE: Look for yellowing in greens, dark soft spots on fruits, or fuzzy mold. 
+  - DAIRY: Look for surface mold on cheese or separation/discoloration in liquids.
 
   Return ONLY JSON in this format:
   {
@@ -28,26 +28,12 @@ export async function analyzeImage(base64Image: string, mode: AppMode): Promise<
         "id": "1",
         "x": number (0-100),
         "y": number (0-100),
-        "observation": "Physical description (e.g., 'Beef: Graying Edge')",
-        "interpretation": "Savvy explanation of what this color suggests.",
+        "observation": "Physical description",
+        "interpretation": "Savvy explanation",
         "riskLevel": "none" | "alert" | "critical"
       }
     ]
   }`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{
-        parts: [
-          { text: prompt },
-          { inlineData: { mimeType: "image/jpeg", data: base64Image.split(',')[1] || base64Image } }
-        ]
-      }]
-    })
-  });
-
   const data = await response.json();
   if (data.error) throw new Error(data.error.message);
 
