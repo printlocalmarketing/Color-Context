@@ -121,7 +121,7 @@ export const Drawer: React.FC<DrawerProps> = ({ signal, mode, onClose }) => {
             <span className="text-[10px] uppercase font-black tracking-widest text-white">Safety Protocol</span>
           </div>
           <p className="text-[12px] text-white/30 leading-relaxed font-bold uppercase tracking-tight">
-            Color Context is a visual guide. Final safety decisions must be based on FDA-approved methods.
+            Safety Notice: This AI is a visual aid only and can make mistakes. Always use your own judgment, smell, and touch. If in doubt, throw it out
           </p>
         </div>
       </div>
