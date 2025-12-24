@@ -14,12 +14,15 @@ export async function analyzeImage(base64Image: string, mode: AppMode): Promise<
 
   MODE: ${mode === 'shopping' ? 'SHOPPING INSIGHT' : 'COOKING INSIGHT'}
 
-  SPECIFIC PROTEIN LOGIC:
+  SPECIFIC LOGIC:
   - BEEF: Look for 'Cherry Red' (fresh), 'Deep Purple' (vacuum-fresh), or 'Brown/Gray' (oxidizing).
   - FISH: Look for 'Glassy/Translucent' (fresh) vs 'Milky/Opaque' (older). Check for 'Gaping' (flesh separating).
   - POULTRY: Look for 'Glossy Pink/White' (raw) vs 'Opaque White' (cooked).
   - PORK: Look for 'Pinkish-Red' (fresh) vs 'Pale/Grey' (oxidizing).
   - EGGS: If egg whites show a pink/reddish tint, mark riskLevel "critical". If glossy/clear in cooking, mark riskLevel "alert".
+  - PRODUCE: Look for 'Yellowing' in leafy greens (alert), 'Dark/Slimy Spots' on fruits or veg (critical), or 'Fuzzy Growth/Mold' (critical).
+  - DAIRY: Look for surface 'Mold' on cheese (critical), 'Separation/Curdling' in liquids (alert), or 'Yellowing' in white cheeses (alert).
+  - GRAINS: Look for 'Green/Black/White Fuzzy Spots' on bread or baked goods (critical).
 
   Return ONLY JSON in this format:
   {
